@@ -17,7 +17,7 @@ env:
   REGISTRY: ${{ vars.REGISTRY }}
   REGISTRY_USERNAME: ${{ vars.REGISTRY_USERNAME }}
   # github.repository as <account>/<repo>
-  IMAGE_NAME: WsTeam2
+  IMAGE_NAME: wsteam1
   DEPLOYMENT_PATH: deployment.yaml
 
 
@@ -58,7 +58,7 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: | 
-            raw=${{ github.sha }}
+            value=${{ github.sha }}
           
 
       # Build and push Docker image with Buildx (don't push on PR)
@@ -74,6 +74,7 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
   deploy:
+    needs: [build]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -82,6 +83,9 @@ jobs:
       # with sigstore/fulcio when running outside of PRs.
       id-token: write
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        
       - name: Set up Kubernetes environment
         uses: azure/k8s-set-context@v1
         with:
@@ -90,7 +94,7 @@ jobs:
           
       - name: Update Docker image tag
         run: |
-          sed -i 's|image: ${{ env.IMAGE_NAME }}:TAG|image: ${{ env.IMAGE_NAME }}:${{ github.sha }}|' ${{ env.DEPLOYMENT_PATH }}
+          sed -i 's|image: ${{ env.IMAGE_NAME }}:TAG|image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}|' ${{ env.DEPLOYMENT_PATH }}
 
       - name: Deploy to Kubernetes
         run: |
